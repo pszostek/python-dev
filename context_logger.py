@@ -6,6 +6,11 @@ import functools
 import inspect
 
 def _retrieve_args(frame):
+    """retrieves function arguments from given frame
+
+    @param frame current stack frame
+    @returns dictionary with argument names as keys
+    """ 
     ret = {}
     arginfo = inspect.getargvalues(frame)
     try:
@@ -13,10 +18,19 @@ def _retrieve_args(frame):
             if arg in arginfo.locals.keys():
                 ret[arg] = arginfo.locals[arg]
         return ret
-    except AttributeError:
+    except AttributeError: #for some reason sometimes this error is raised
         return {}
 
 def _call_printer(frame, event, arg, stream, disable_builtin):
+    """prints details about the caller and callee function for 'call' events
+
+    @param frame required by sys.settrace()
+    @param event required by sys.settrace()
+    @param arg required by sys.settrace()
+    @param stream an object offering 'write' method
+    @param disable_builtin indicates if standard python functions
+           should be printed
+    """
     if event != "call":
         return
     co = frame.f_code
@@ -43,12 +57,20 @@ def _call_printer(frame, event, arg, stream, disable_builtin):
 @contextmanager
 def log_calls(stream=None, disable_builtin=True):
     """ 
+    Context manager for call tracing within its block
+    @param stream an object offering 'write' method
+    @param disable_builtin indicates if standard python functions
+           should be printed
+
+    A very trivial usage example:
     >>> def a(n):
     ...     pass
     >>> with log_calls():
     ...     a(2)
     <stdin>(2) -> <stdin>(1):a(n=2)
     """
+    assert (stream is None) or hasattr(stream, "write")
+    assert isinstance(disable_builtin, bool)
     if stream is None:
         stream = sys.stdout
     old_trace = sys.gettrace()
