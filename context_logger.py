@@ -21,7 +21,8 @@ def _retrieve_args(frame):
     except AttributeError: #for some reason sometimes this error is raised
         return {}
 
-def _call_printer(frame, event, arg, stream, disable_builtin):
+def _call_printer(frame, event, arg, stream, disable_builtin,\
+    print_args, short_fnames):
     """prints details about the caller and callee function for 'call' events
 
     @param frame required by sys.settrace()
@@ -30,6 +31,7 @@ def _call_printer(frame, event, arg, stream, disable_builtin):
     @param stream an object offering 'write' method
     @param disable_builtin indicates if standard python functions
            should be printed
+    @param print_args indicates whether print function arguments
     """
     if event != "call": #we are interested in function calls only
         return
@@ -40,26 +42,37 @@ def _call_printer(frame, event, arg, stream, disable_builtin):
     caller = frame.f_back
     caller_line_no = caller.f_lineno
     caller_filename = caller.f_code.co_filename
+    if short_fnames:
+        callee_filename = callee_filename.split('/')[-1]
+        caller_filename = caller_filename.split('/')[-1]
     if callee_name == "write": #omit self-recursion in prints
         return
     if disable_builtin and callee_name.startswith("__"): #omit magic functions
         return
     if (disable_builtin  and (callee_filename.startswith("/usr/lib") \
-        or caller_filename.startswith("/usr/lib"))): #assume that builtins are in /usr/lib
+        #assume that builtins are in /usr/lib
+        or caller_filename.startswith("/usr/lib"))): 
         return
     args = _retrieve_args(frame)
-    arg_str = ", ".join("%s=%s" % (k,v) for k,v in args.items())
+    if print_args:
+        arg_str = ", ".join("%s=%s" % (k,v) for k,v in args.items())
+    else:
+        arg_str = ""
     print '%s(%s) -> %s(%s): %s(%s)' % \
-        (caller_filename, caller_line_no, callee_filename, callee_line_no, callee_name, arg_str)
+        (caller_filename, caller_line_no, callee_filename,
+            callee_line_no, callee_name, arg_str)
     return
 
 @contextmanager
-def log_calls(stream=None, disable_builtin=True):
+def log_calls(stream=None, disable_builtin=True, print_args=False, short_fnames=False):
     """ 
     Context manager for call tracing within its block
     @param stream an object offering 'write' method
     @param disable_builtin indicates if standard python functions
            should be printed
+    @param print_args indicates whether function arguments should be printed
+    @param short_fnames indicated whether to print whole file paths
+           or just its names
 
     A very trivial usage example:
     >>> def a(n):
@@ -83,11 +96,14 @@ def log_calls(stream=None, disable_builtin=True):
     """
     assert (stream is None) or hasattr(stream, "write")
     assert isinstance(disable_builtin, bool)
+    assert isinstance(print_args, bool)
+    assert isinstance(short_fnames, bool)
     if stream is None:
         stream = sys.stdout
     old_trace = sys.gettrace()
     new_trace = functools.partial(_call_printer, stream=stream,\
-        disable_builtin=disable_builtin)
+        disable_builtin=disable_builtin, print_args=print_args,\
+        short_fnames=short_fnames)
     sys.settrace(new_trace)
     yield
     sys.settrace(old_trace)
