@@ -44,8 +44,8 @@ def _call_printer(frame, event, arg, stream, disable_builtin):
         return
     if disable_builtin and callee_name.startswith("__"): #omit magic functions
         return
-    if (disable_builtin  and (callee_filename.startswith("/usr/lib") \ #assume that builtins are in /usr/lib
-        or caller_filename.startswith("/usr/lib"))):
+    if (disable_builtin  and (callee_filename.startswith("/usr/lib") \
+        or caller_filename.startswith("/usr/lib"))): #assume that builtins are in /usr/lib
         return
     args = _retrieve_args(frame)
     arg_str = ", ".join("%s=%s" % (k,v) for k,v in args.items())
