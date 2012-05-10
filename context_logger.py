@@ -63,10 +63,23 @@ def log_calls(stream=None, disable_builtin=True):
 
     A very trivial usage example:
     >>> def a(n):
-    ...     pass
+    ...     if n: b(n-1)
+    >>> def b(n):
+    ...     if n: a(n-1)
     >>> with log_calls():
-    ...     a(2)
-    <stdin>(2) -> <stdin>(1):a(n=2)
+    ...     a(10)
+    ...
+    <stdin>(2) -> <stdin>(1): a(n=10)
+    <stdin>(2) -> <stdin>(1): b(n=9)
+    <stdin>(2) -> <stdin>(1): a(n=8)
+    <stdin>(2) -> <stdin>(1): b(n=7)
+    <stdin>(2) -> <stdin>(1): a(n=6)
+    <stdin>(2) -> <stdin>(1): b(n=5)
+    <stdin>(2) -> <stdin>(1): a(n=4)
+    <stdin>(2) -> <stdin>(1): b(n=3)
+    <stdin>(2) -> <stdin>(1): a(n=2)
+    <stdin>(2) -> <stdin>(1): b(n=1)
+    <stdin>(2) -> <stdin>(1): a(n=0)
     """
     assert (stream is None) or hasattr(stream, "write")
     assert isinstance(disable_builtin, bool)
