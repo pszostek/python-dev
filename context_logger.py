@@ -31,27 +31,26 @@ def _call_printer(frame, event, arg, stream, disable_builtin):
     @param disable_builtin indicates if standard python functions
            should be printed
     """
-    if event != "call":
+    if event != "call": #we are interested in function calls only
         return
     co = frame.f_code
-    func_name = co.co_name
-    if func_name == "write":
-        return
-    if disable_builtin and func_name.startswith("__"):
-        return
-    func_filename = co.co_filename
-    func_line_no = frame.f_lineno
+    callee_name = co.co_name
+    callee_filename = co.co_filename
+    callee_line_no = frame.f_lineno
     caller = frame.f_back
     caller_line_no = caller.f_lineno
     caller_filename = caller.f_code.co_filename
-    if (disable_builtin  and (func_filename.startswith("/usr/lib") \
+    if callee_name == "write": #omit self-recursion in prints
+        return
+    if disable_builtin and callee_name.startswith("__"): #omit magic functions
+        return
+    if (disable_builtin  and (callee_filename.startswith("/usr/lib") \ #assume that builtins are in /usr/lib
         or caller_filename.startswith("/usr/lib"))):
         return
     args = _retrieve_args(frame)
-    #print "args", args
     arg_str = ", ".join("%s=%s" % (k,v) for k,v in args.items())
     print '%s(%s) -> %s(%s): %s(%s)' % \
-        (caller_filename, caller_line_no, func_filename, func_line_no, func_name, arg_str)
+        (caller_filename, caller_line_no, callee_filename, callee_line_no, callee_name, arg_str)
     return
 
 @contextmanager
