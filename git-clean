@@ -1,0 +1,89 @@
+
+First, let's see what is the size of the packed objects:
+$ git count-objects -v
+count: 0
+size: 0
+in-pack: 3765
+packs: 1
+size-pack: 11868
+prune-packable: 0
+garbage: 0
+
+So we have 12MB. Not much, but keep in mind that we're talking about a code repository. I can bet it's not man-written text that takes 12MB of our dirk space. The next step is to find out which guy is to blame for this.
+
+pawel@pawel-asus:/tmp/CoAnSys$ git verify-pack -v .git/objects/pack/pack-fd6a756ca5b01f85046ccadd48179672488c7072.idx | sort -k 3 -n | tail -5
+fa52cf22d4107df45eec556669ba6fb4c099d359 blob   44752 5684 11634488
+673c9be9ea7fad818a048f027209ddabf91bb75a blob   63869 7772 191798
+232e5b8008e5be393df35d4be81b24ebb2c16582 blob   101976 95907 11822566
+7abb120f4fe09c9c2a9382b8c7b86c5c64367b16 blob   302919 25066 11663662
+073137238bf0724d069296c4dd9222ca925a72e3 blob   11425701 11424066 209889
+
+We run verify-pack in order to examine pack's content. As a launch argument one have to give a path to the particular that we'd like to examine. This is easy as there is only one pack in .git/objects/pack/, so nothing easier than 
+
+pawel@pawel-asus:/tmp/CoAnSys$ git rev-list --all --objects | grep 073137238bf0724d069296c4dd9222ca925a72e3
+073137238bf0724d069296c4dd9222ca925a72e3 examples/GROTOAP-10.zip
+
+pawel@pawel-asus:/tmp/CoAnSys$ git filter-branch --index-filter 'git rm --ignore-unmatch --cached GROTOAP-10.zip'
+Rewrite 7199c74f41264e56128fc0566a4efe2733ea8054 (296/296)
+WARNING: Ref 'refs/heads/master' is unchanged
+
+pawel@pawel-asus:/tmp/CoAnSys$ find . -name 'GROTOAP-10.zip'
+./examples/GROTOAP-10.zip
+
+pawel@pawel-asus:/tmp/CoAnSys$ git filter-branch --index-filter 'git rm --ignore-unmatch --cached examples/GROTOAP-10.zip'
+Rewrite d9a0e4692e9fc18581eb0e78988f6c0b35be95d4 (164/296)rm 'examples/GROTOAP-10.zip'
+Rewrite 8271f4506df9ce8f358bc4d4a010c7499e1ae42b (165/296)rm 'examples/GROTOAP-10.zip'
+...
+Rewrite 7199c74f41264e56128fc0566a4efe2733ea8054 (296/296)rm 'examples/GROTOAP-10.zip'
+
+Ref 'refs/heads/master' was rewritten
+
+
+pawel@pawel-asus:/tmp/CoAnSys$ rm -Rf .git/refs/original
+pawel@pawel-asus:/tmp/CoAnSys$ rm -Rf .git/logs
+pawel@pawel-asus:/tmp/CoAnSys$ git gc
+Counting objects: 3765, done.
+Delta compression using up to 4 threads.
+Compressing objects: 100% (1354/1354), done.
+Writing objects: 100% (3765/3765), done.
+Total 3765 (delta 1471), reused 3765 (delta 1471)
+
+pawel@pawel-asus:/tmp/CoAnSys$ git count-objects -v
+count: 0
+size: 0
+in-pack: 3766
+packs: 1
+size-pack: 11868
+prune-packable: 0
+garbage: 0
+
+
+from git-filter-branch manual:
+      git-filter-branch is often used to get rid of a subset of files, usually with some combination of --index-filter and --subdirectory-filter. People expect the resulting repository to be smaller than the original, but you need
+       a few more steps to actually make it smaller, because git tries hard not to lose your objects until you tell it to. [...] Then there are two ways to get a smaller repository. A safer way is to clone, that keeps your original intact.
+
+       ·   Clone it with git clone file:///path/to/repo. The clone will not have the removed objects. See git-clone(1). (Note that cloning with a plain path just hardlinks everything!)
+
+
+Cleaning & getting rid of unreferenced objects
+
+
+  # remove objects from reflog (in case it's the only place where they are
+git reflog expire --expire=now --all
+  # will now report unreachable
+git fsck --unreachable
+  # will now actually delete objects
+git prune -v 
+
+   This runs git fsck --unreachable using all the refs available in refs/, optionally with additional set of objects specified on the command line, and prunes all unpacked objects unreachable from any of these head objects from
+       the object database. In addition, it prunes the unpacked objects that are also found in packs by running git prune-packed.
+
+       Note that unreachable, packed objects will remain. If this is not desired, see git-repack(1)
+
+git repack -a -d
+       -a
+           Instead of incrementally packing the unpacked objects, pack everything referenced into a single pack. Especially useful when packing a repository that is used for private development. Use with -d. This will clean up the
+           objects that git prune leaves behind, but git fsck --full shows as dangling.
+
+
+git prune-packed
