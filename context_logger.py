@@ -4,6 +4,11 @@ from contextlib import contextmanager
 import sys
 import functools
 import inspect
+from termcolors import red, blue, green, yellow
+
+@contextmanager
+def disable(context_manager):
+    yield
 
 def _retrieve_args(frame):
     """retrieves function arguments from given frame
@@ -16,7 +21,7 @@ def _retrieve_args(frame):
     try:
         for arg in arginfo.args:
             if arg in arginfo.locals.keys():
-                ret[arg] = arginfo.locals[arg]
+                ret[arg] = str(arginfo.locals[arg])
         return ret
     except AttributeError: #for some reason sometimes this error is raised
         return {}
@@ -54,13 +59,15 @@ def _call_printer(frame, event, arg, stream, disable_builtin,\
         or caller_filename.startswith("/usr/lib"))): 
         return
     args = _retrieve_args(frame)
-    if print_args:
-        arg_str = ", ".join("%s=%s" % (k,v) for k,v in args.items())
+    if "self" in args.keys():
+        self_str = yellow("self=%s" % args["self"])
     else:
-        arg_str = ""
-    print '%s(%s) -> %s(%s): %s(%s)' % \
-        (caller_filename, caller_line_no, callee_filename,
-            callee_line_no, callee_name, arg_str)
+        self_str = ""
+    if print_args:
+        arg_str = self_str + ", ".join("%s=%s" % (k,v) for k,v in args.items() if k!="self")
+    stream.write('%s(%s) -> %s(%s): %s(%s)\n' % \
+        (blue(caller_filename), caller_line_no, blue(callee_filename),
+            callee_line_no, green(callee_name), arg_str))
     return
 
 @contextmanager
