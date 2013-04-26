@@ -4,4 +4,4 @@ for file in $files; do
 done
  
 # remove the temporary history git-filter-branch otherwise leaves behind for a long time
-rm -rf .git/refs/original/ && git reflog expire --all &&  git gc --aggressive --prune
+rm -rf .git/refs/original/ && git reflog expire --all &&  git gc --aggressive --prune 

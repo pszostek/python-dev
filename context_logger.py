@@ -25,7 +25,7 @@ def _retrieve_args(frame):
         return ret
     except AttributeError: #for some reason sometimes this error is raised
         return {}
-
+`
 def _call_printer(frame, event, arg, stream, disable_builtin,\
     print_args, short_fnames):
     """prints details about the caller and callee function for 'call' events
@@ -65,7 +65,9 @@ def _call_printer(frame, event, arg, stream, disable_builtin,\
         self_str = ""
     if print_args:
         arg_str = self_str + ", ".join("%s=%s" % (k,v) for k,v in args.items() if k!="self")
-    stream.write('%s(%s) -> %s(%s): %s(%s)\n' % \
+    else:
+        arg_str = ""
+    stream.write('%s:%s -> %s:%s %s(%s)\n' % \
         (blue(caller_filename), caller_line_no, blue(callee_filename),
             callee_line_no, green(callee_name), arg_str))
     return
